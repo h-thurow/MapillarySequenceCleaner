@@ -89,7 +89,7 @@ def main():
 
     cursor = args.after
     total_fetched = 0
-    all_filtered = []
+    nodes_in_time_window = []
 
     while True:
         data = fetch_thumb_images(args.doc_id, args.user_id, args.app_token, cursor)
@@ -104,17 +104,17 @@ def main():
                 continue
             if capture_end and captured_at > capture_end:
                 continue
-            all_filtered.append(node)
+            nodes_in_time_window.append(node)
 
         if not page_info["has_next_page"]:
             break
         cursor = page_info["end_cursor"]
 
-    all_filtered.sort(key=lambda n: n[sort_key], reverse=True)
+    nodes_in_time_window.sort(key=lambda n: n[sort_key], reverse=True)
 
     cache = load_cache()
-    to_fetch = [n for n in all_filtered if n["image_id"] not in cache]
-    cache_hits = len(all_filtered) - len(to_fetch)
+    to_fetch = [n for n in nodes_in_time_window if n["image_id"] not in cache]
+    cache_hits = len(nodes_in_time_window) - len(to_fetch)
 
     if to_fetch:
         with ThreadPoolExecutor(max_workers=1) as pool:
@@ -132,7 +132,7 @@ def main():
     print(f"{sort_label:<{col_w[0]}} {'image_id':<{col_w[1]}} {'item_count':>{col_w[2]}} {'sequence':<{col_w[3]}}")
     print("-" * (sum(col_w) + 3))
 
-    for node in all_filtered:
+    for node in nodes_in_time_window:
         dt = datetime.fromtimestamp(node[sort_key], tz=timezone.utc)
         print(
             f"{dt.strftime('%Y-%m-%d %H:%M:%S UTC'):<{col_w[0]}} "
@@ -145,7 +145,7 @@ def main():
     print(f"Nodes fetched  : {total_fetched}")
     print(f"Sequences cache: {cache_hits} hits, {len(to_fetch)} fetched")
     if capture_start or capture_end:
-        print(f"Nodes shown    : {len(all_filtered)}")
+        print(f"Nodes shown    : {len(nodes_in_time_window)}")
 
 
 if __name__ == "__main__":
