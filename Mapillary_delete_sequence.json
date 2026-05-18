@@ -1,0 +1,286 @@
+{
+  "version": 6,
+  "entities": [
+    {
+      "entity": {
+        "type": "Project",
+        "description": "Sequenz löschen",
+        "id": "80727735-db3b-40af-a1bb-d7cbb1a5e5bb",
+        "name": "Mapillary"
+      },
+      "children": [
+        {
+          "entity": {
+            "type": "Scenario",
+            "description": "Sequenzen löschen",
+            "id": "a5878add-1625-4570-bd30-23e019487ea4",
+            "name": "Sequenzen löschen"
+          },
+          "children": [
+            {
+              "entity": {
+                "type": "Request",
+                "method": {
+                  "link": "http://tools.ietf.org/html/rfc7231#section-4.3.1",
+                  "name": "GET"
+                },
+                "body": {
+                  "formBody": {
+                    "overrideContentType": true,
+                    "encoding": "application/x-www-form-urlencoded",
+                    "items": []
+                  },
+                  "bodyType": "Text"
+                },
+                "uri": {
+                  "query": {
+                    "delimiter": "&",
+                    "items": [
+                      {
+                        "enabled": true,
+                        "name": "doc_id",
+                        "value": "${doc_id}"
+                      },
+                      {
+                        "enabled": true,
+                        "name": "variables",
+                        "value": "{\"id\":\"${user_id}\",\"first\":200,\"after\":${thumbs_after},\"hide_after\":14}"
+                      },
+                      {
+                        "enabled": true,
+                        "name": "access_token",
+                        "value": "${token}"
+                      }
+                    ]
+                  },
+                  "scheme": {
+                    "secure": true,
+                    "name": "https",
+                    "version": "V11"
+                  },
+                  "host": "graph.mapillary.com",
+                  "path": "/graphql/"
+                },
+                "id": "e2fc4f43-0808-430f-963c-6fbcf022534b",
+                "name": "0 Metadata Thumb Images",
+                "headers": []
+              }
+            },
+            {
+              "entity": {
+                "type": "Request",
+                "method": {
+                  "link": "http://tools.ietf.org/html/rfc7231#section-4.3.1",
+                  "name": "GET"
+                },
+                "body": {
+                  "formBody": {
+                    "overrideContentType": true,
+                    "encoding": "application/x-www-form-urlencoded",
+                    "items": []
+                  },
+                  "bodyType": "Text"
+                },
+                "uri": {
+                  "query": {
+                    "delimiter": "&",
+                    "items": [
+                      {
+                        "enabled": true,
+                        "name": "doc_id",
+                        "value": "${doc_id}"
+                      },
+                      {
+                        "enabled": true,
+                        "name": "variables",
+                        "value": "{\"id\":\"${user_id}\",\"first\":200,\"after\":\"${getEntityById(\"e2fc4f43-0808-430f-963c-6fbcf022534b\").\"response\".\"body\".\"data\".\"fetch__User\".\"feed\".\"page_info\".\"end_cursor\"}\",\"hide_after\":14}"
+                      },
+                      {
+                        "enabled": true,
+                        "name": "access_token",
+                        "value": "${token}"
+                      }
+                    ]
+                  },
+                  "scheme": {
+                    "secure": true,
+                    "name": "https",
+                    "version": "V11"
+                  },
+                  "host": "graph.mapillary.com",
+                  "path": "/graphql/"
+                },
+                "description": "Arbeitet auf dem zuletzt gelieferten Wert für end_cursor.",
+                "id": "f7dcd5da-0d09-41dc-9c21-341f22b0801e",
+                "name": "0.1 Metadata Thumb Images - next",
+                "headers": []
+              }
+            },
+            {
+              "entity": {
+                "type": "Request",
+                "method": {
+                  "link": "http://tools.ietf.org/html/rfc7231#section-4.3.1",
+                  "name": "GET"
+                },
+                "body": {
+                  "formBody": {
+                    "overrideContentType": true,
+                    "encoding": "application/x-www-form-urlencoded",
+                    "items": []
+                  },
+                  "bodyType": "Text"
+                },
+                "uri": {
+                  "query": {
+                    "delimiter": "&",
+                    "items": [
+                      {
+                        "enabled": true,
+                        "name": "access_token",
+                        "value": "${\"token\"}"
+                      },
+                      {
+                        "enabled": true,
+                        "name": "fields",
+                        "value": "sequence"
+                      }
+                    ]
+                  },
+                  "scheme": {
+                    "secure": true,
+                    "name": "https",
+                    "version": "V11"
+                  },
+                  "host": "graph.mapillary.com",
+                  "path": "/${\"image_id\"}"
+                },
+                "id": "b2674007-331d-44b8-ad7c-4a5c6703c56b",
+                "name": "0.5 Thumb's sequence",
+                "headers": []
+              }
+            },
+            {
+              "entity": {
+                "type": "Request",
+                "method": {
+                  "requestBody": true,
+                  "link": "http://tools.ietf.org/html/rfc7231#section-4.3.3",
+                  "name": "POST"
+                },
+                "body": {
+                  "formBody": {
+                    "overrideContentType": true,
+                    "encoding": "application/x-www-form-urlencoded",
+                    "items": []
+                  },
+                  "bodyType": "Text",
+                  "textBody": "{\n  \"operationName\":\"requestImagesDeletion\",\n  \"variables\":{\n    \"user_id\":\"${user_id}\",\n    \"sequence_key\":\"${getEntityById(\"b2674007-331d-44b8-ad7c-4a5c6703c56b\").\"response\".\"body\".\"sequence\"}\",\n    \"reason\":null\n  },\n  \"query\":\"mutation requestImagesDeletion($user_id: ID!, $sequence_key: String!, $reason: String) {request_images_deletion(user_id: $user_id sequence_key: $sequence_key reason: $reason) {id sequence_key reason  __typename}}\"\n}"
+                },
+                "uri": {
+                  "query": {
+                    "delimiter": "&",
+                    "items": [
+                      {
+                        "enabled": true,
+                        "name": "doc",
+                        "value": "mutation requestImagesDeletion($user_id: ID!, $sequence_key: String!, $reason: String) {request_images_deletion(user_id: $user_id, sequence_key: $sequence_key, reason: $reason) {id sequence_key reason __typename}}"
+                      }
+                    ]
+                  },
+                  "scheme": {
+                    "secure": true,
+                    "name": "https",
+                    "version": "V11"
+                  },
+                  "host": "graph.mapillary.com",
+                  "path": "/graphql/"
+                },
+                "id": "6a2c4cd9-1111-4477-a7bf-15490a1f0f27",
+                "name": "1. requestImagesDeletion",
+                "headers": [
+                  {
+                    "enabled": true,
+                    "name": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "enabled": true,
+                    "name": "Authorization",
+                    "value": "${authorization}"
+                  }
+                ]
+              }
+            },
+            {
+              "entity": {
+                "type": "Request",
+                "method": {
+                  "link": "http://tools.ietf.org/html/rfc7231#section-4.3.1",
+                  "name": "GET"
+                },
+                "body": {
+                  "formBody": {
+                    "overrideContentType": true,
+                    "encoding": "application/x-www-form-urlencoded",
+                    "items": []
+                  },
+                  "bodyType": "Text",
+                  "textBody": "{\n  \"operationName\":\"requestImagesDeletion\",\n  \"variables\":{\n    \"user_id\":\"777098634578684\",\n    \"sequence_key\":\"${sequence}\",\n    \"reason\":null\n  },\n  \"query\":\"mutation requestImagesDeletion($user_id: ID!, $sequence_key: String!, $reason: String) {request_images_deletion(user_id: $user_id sequence_key: $sequence_key reason: $reason) {id sequence_key reason  __typename}}\"\n}"
+                },
+                "uri": {
+                  "query": {
+                    "delimiter": "&",
+                    "items": [
+                      {
+                        "enabled": true,
+                        "name": "doc",
+                        "value": "query getSequenceDeletionRequest($sequence_key:String!){images_deletion_request_by_sequence_key(sequence_key:$sequence_key){id id sequence_key is_approved is_completed __typename}}"
+                      },
+                      {
+                        "enabled": true,
+                        "name": "query",
+                        "value": "query getSequenceDeletionRequest($sequence_key:String!){images_deletion_request_by_sequence_key(sequence_key:$sequence_key){id sequence_key is_approved is_completed __typename}}"
+                      },
+                      {
+                        "enabled": true,
+                        "name": "operationName",
+                        "value": "getSequenceDeletionRequest"
+                      },
+                      {
+                        "enabled": true,
+                        "name": "variables",
+                        "value": "{\"sequence_key\":\"${getEntityById(\"6a2c4cd9-1111-4477-a7bf-15490a1f0f27\").\"response\".\"body\".\"data\".\"request_images_deletion\".\"sequence_key\"}\"}"
+                      }
+                    ]
+                  },
+                  "scheme": {
+                    "secure": true,
+                    "name": "https",
+                    "version": "V11"
+                  },
+                  "host": "graph.mapillary.com",
+                  "path": "/graphql/"
+                },
+                "id": "8b3237a4-1d51-41f9-9616-1ebf1bb3a503",
+                "name": "2. getSequenceDeletionRequest",
+                "headers": [
+                  {
+                    "enabled": true,
+                    "name": "Authorization",
+                    "value": "${authorization}"
+                  },
+                  {
+                    "enabled": true,
+                    "name": "Content-Type",
+                    "value": "application/json"
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
