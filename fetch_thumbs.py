@@ -20,14 +20,14 @@ def fetch_thumb_images(doc_id, user_id, token, after=None):
 
 
 def fetch_sequence(image_id, token):
-    params = {"fields": "sequence", "access_token": token}
-    url = f"https://graph.mapillary.com/{image_id}?" + urllib.parse.urlencode(params)
+    # token contains '|' which must not be percent-encoded for this endpoint
+    url = f"https://graph.mapillary.com/{image_id}?fields=sequence&access_token={token}"
     try:
         with urllib.request.urlopen(url) as resp:
             return json.loads(resp.read()).get("sequence", "")
     except urllib.error.HTTPError as e:
         body = e.read().decode(errors="replace")
-        raise RuntimeError(f"HTTP {e.code} for image_id {image_id}\nURL: {url}\nBody: {body}") from None
+        raise RuntimeError(f"HTTP {e.code} for image_id {image_id}\nBody: {body}") from None
 
 
 def main():
@@ -38,6 +38,7 @@ def main():
     parser.add_argument("--after", default=None, help="Pagination cursor (end_cursor from previous response)")
     parser.add_argument("--captured_from", default=None, metavar="YYYY-MM-DD[THH:MM:SS]", help="Filter: captured_at >= this date (UTC)")
     parser.add_argument("--captured_to", default=None, metavar="YYYY-MM-DD[THH:MM:SS]", help="Filter: captured_at <= this date (UTC)")
+    parser.add_argument("--sort-by", dest="sort_by", default="captured_at", choices=["captured_at", "created_at"], help="Sort output by field (default: captured_at)")
     args = parser.parse_args()
 
     def parse_dt(s):
@@ -51,13 +52,11 @@ def main():
     capture_start = parse_dt(args.captured_from) if args.captured_from else None
     capture_end = parse_dt(args.captured_to) if args.captured_to else None
 
-    col_w = (28, 20, 10, 36)
-    print(f"{'captured_at (UTC)':<{col_w[0]}} {'image_id':<{col_w[1]}} {'item_count':>{col_w[2]}} {'sequence':<{col_w[3]}}")
-    print("-" * (sum(col_w) + 3))
+    sort_key = args.sort_by + "_seconds"
 
     cursor = args.after
     total_fetched = 0
-    total_shown = 0
+    all_filtered = []
 
     while True:
         data = fetch_thumb_images(args.doc_id, args.user_id, args.token, cursor)
@@ -66,39 +65,45 @@ def main():
         page_info = feed["page_info"]
         total_fetched += len(nodes)
 
-        filtered = []
         for node in nodes:
             captured_at = datetime.fromtimestamp(node["captured_at_seconds"], tz=timezone.utc)
             if capture_start and captured_at < capture_start:
                 continue
             if capture_end and captured_at > capture_end:
                 continue
-            filtered.append((node, captured_at))
-
-        sequences = {}
-        with ThreadPoolExecutor(max_workers=1) as pool:
-            futures = {pool.submit(fetch_sequence, node["image_id"], args.token): node["image_id"]
-                       for node, _ in filtered}
-            for future in as_completed(futures):
-                sequences[futures[future]] = future.result()
-
-        for node, captured_at in filtered:
-            print(
-                f"{captured_at.strftime('%Y-%m-%d %H:%M:%S UTC'):<{col_w[0]}} "
-                f"{node['image_id']:<{col_w[1]}} "
-                f"{node['item_count']:>{col_w[2]}} "
-                f"{sequences.get(node['image_id'], ''):<{col_w[3]}}"
-            )
-            total_shown += 1
+            all_filtered.append(node)
 
         if not page_info["has_next_page"]:
             break
         cursor = page_info["end_cursor"]
 
+    all_filtered.sort(key=lambda n: n[sort_key], reverse=True)
+
+    sequences = {}
+    with ThreadPoolExecutor(max_workers=1) as pool:
+        futures = {pool.submit(fetch_sequence, node["image_id"], args.token): node["image_id"]
+                   for node in all_filtered}
+        for future in as_completed(futures):
+            sequences[futures[future]] = future.result()
+
+    col_w = (28, 20, 10, 36)
+    sort_label = "captured_at (UTC)" if args.sort_by == "captured_at" else "created_at (UTC)"
+    print(f"{sort_label:<{col_w[0]}} {'image_id':<{col_w[1]}} {'item_count':>{col_w[2]}} {'sequence':<{col_w[3]}}")
+    print("-" * (sum(col_w) + 3))
+
+    for node in all_filtered:
+        dt = datetime.fromtimestamp(node[sort_key], tz=timezone.utc)
+        print(
+            f"{dt.strftime('%Y-%m-%d %H:%M:%S UTC'):<{col_w[0]}} "
+            f"{node['image_id']:<{col_w[1]}} "
+            f"{node['item_count']:>{col_w[2]}} "
+            f"{sequences.get(node['image_id'], ''):<{col_w[3]}}"
+        )
+
     print()
     print(f"Nodes fetched : {total_fetched}")
     if capture_start or capture_end:
-        print(f"Nodes shown   : {total_shown}")
+        print(f"Nodes shown   : {len(all_filtered)}")
 
 
 if __name__ == "__main__":
