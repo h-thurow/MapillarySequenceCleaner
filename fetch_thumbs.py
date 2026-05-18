@@ -1,10 +1,24 @@
 #!/usr/bin/env python3
 import argparse
 import json
+import pathlib
+import urllib.error
 import urllib.parse
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
+
+SEQUENCE_CACHE_FILE = pathlib.Path(__file__).parent / "sequence_cache.json"
+
+
+def load_cache():
+    if SEQUENCE_CACHE_FILE.exists():
+        return json.loads(SEQUENCE_CACHE_FILE.read_text())
+    return {}
+
+
+def save_cache(cache):
+    SEQUENCE_CACHE_FILE.write_text(json.dumps(cache, indent=2))
 
 
 def fetch_thumb_images(doc_id, user_id, token, after=None):
@@ -79,12 +93,20 @@ def main():
 
     all_filtered.sort(key=lambda n: n[sort_key], reverse=True)
 
-    sequences = {}
-    with ThreadPoolExecutor(max_workers=1) as pool:
-        futures = {pool.submit(fetch_sequence, node["image_id"], args.token): node["image_id"]
-                   for node in all_filtered}
-        for future in as_completed(futures):
-            sequences[futures[future]] = future.result()
+    cache = load_cache()
+    to_fetch = [n for n in all_filtered if n["image_id"] not in cache]
+    cache_hits = len(all_filtered) - len(to_fetch)
+
+    if to_fetch:
+        with ThreadPoolExecutor(max_workers=1) as pool:
+            futures = {pool.submit(fetch_sequence, node["image_id"], args.token): node["image_id"]
+                       for node in to_fetch}
+            for future in as_completed(futures):
+                image_id = futures[future]
+                cache[image_id] = future.result()
+                save_cache(cache)
+
+    sequences = cache
 
     col_w = (28, 20, 10, 36)
     sort_label = "captured_at (UTC)" if args.sort_by == "captured_at" else "created_at (UTC)"
@@ -101,9 +123,10 @@ def main():
         )
 
     print()
-    print(f"Nodes fetched : {total_fetched}")
+    print(f"Nodes fetched  : {total_fetched}")
+    print(f"Sequences cache: {cache_hits} hits, {len(to_fetch)} fetched")
     if capture_start or capture_end:
-        print(f"Nodes shown   : {len(all_filtered)}")
+        print(f"Nodes shown    : {len(all_filtered)}")
 
 
 if __name__ == "__main__":
