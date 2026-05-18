@@ -31,8 +31,8 @@ def save_cache(cache):
     SEQUENCE_CACHE_FILE.write_text(json.dumps(cache, indent=2))
 
 
-def fetch_thumb_images(doc_id, user_id, token, after=None):
-    variables = {"id": user_id, "first": 200, "after": after, "hide_after": 14}
+def fetch_thumb_images(doc_id, user_id, token, first=200, after=None):
+    variables = {"id": user_id, "first": first, "after": after, "hide_after": 14}
     params = {
         "doc_id": doc_id,
         "variables": json.dumps(variables, separators=(",", ":")),
@@ -54,6 +54,17 @@ def fetch_sequence(image_id, user_token):
         raise RuntimeError(f"HTTP {e.code} for image_id {image_id}\nBody: {body}") from None
 
 
+def add_common_args(p, config):
+    p.add_argument("--doc_id", default=config.get("doc_id"), help="GraphQL doc_id for feed query")
+    p.add_argument("--user_id", default=config.get("user_id"), help="Mapillary user ID")
+    p.add_argument("--app_token", default=config.get("app_token"), help="Mapillary app client token (access_token)")
+    p.add_argument("--first", type=int, default=config.get("first", 200), help="Page size for feed query")
+    p.add_argument("--after", default=None, help="Pagination cursor (end_cursor from previous response)")
+    p.add_argument("--captured_from", default=None, metavar="YYYY-MM-DD[THH:MM:SS]", help="Filter: captured_at >= this date (UTC)")
+    p.add_argument("--captured_to", default=None, metavar="YYYY-MM-DD[THH:MM:SS]", help="Filter: captured_at <= this date (UTC)")
+    p.add_argument("--sort-by", dest="sort_by", default="captured_at", choices=["captured_at", "created_at"], help="Sort output by field")
+
+
 def main():
     config = load_config()
 
@@ -61,21 +72,24 @@ def main():
         description="Fetch Mapillary thumb image metadata.",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
-    parser.add_argument("--doc_id", default=config.get("doc_id"), help="GraphQL doc_id for feed query")
-    parser.add_argument("--user_id", default=config.get("user_id"), help="Mapillary user ID")
-    parser.add_argument("--app_token", default=config.get("app_token"), help="Mapillary app client token (access_token)")
-    parser.add_argument("--user_token", default=config.get("user_token"), help="Personal OAuth token for Image API")
-    parser.add_argument("--after", default=None, help="Pagination cursor (end_cursor from previous response)")
-    parser.add_argument("--captured_from", default=None, metavar="YYYY-MM-DD[THH:MM:SS]", help="Filter: captured_at >= this date (UTC)")
-    parser.add_argument("--captured_to", default=None, metavar="YYYY-MM-DD[THH:MM:SS]", help="Filter: captured_at <= this date (UTC)")
-    parser.add_argument("--sort-by", dest="sort_by", default="captured_at", choices=["captured_at", "created_at"], help="Sort output by field")
+    subparsers = parser.add_subparsers(dest="command", required=True)
+
+    p_thumbs = subparsers.add_parser("thumbs", help="Fetch thumb metadata only (no sequence IDs)",
+                                     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    add_common_args(p_thumbs, config)
+
+    p_sequences = subparsers.add_parser("sequences", help="Fetch thumb metadata and resolve sequence IDs",
+                                        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    add_common_args(p_sequences, config)
+    p_sequences.add_argument("--user_token", default=config.get("user_token"), help="Personal OAuth token for Image API")
+
     args = parser.parse_args()
 
     for name in ("doc_id", "user_id", "app_token"):
         if not getattr(args, name):
             parser.error(f"--{name} is required (set in config.json or pass as argument)")
-    if not args.user_token:
-        parser.error("--user_token is required (set in config.json or pass as argument)")
+    if args.command == "sequences" and not args.user_token:
+        parser.error("--user_token is required for sequences (set in config.json or pass as argument)")
 
     def parse_dt(s):
         for fmt in ("%Y-%m-%dT%H:%M:%S", "%Y-%m-%d %H:%M:%S", "%Y-%m-%d"):
@@ -90,8 +104,8 @@ def main():
 
     sort_key = args.sort_by + "_seconds"
 
-    def elapsed(t0):
-        s = int(time.monotonic() - t0)
+    def elapsed(start):
+        s = int(time.monotonic() - start)
         return f"{s // 3600}:{s % 3600 // 60:02}:{s % 60:02}"
 
     cursor = args.after
@@ -103,7 +117,10 @@ def main():
     while True:
         page += 1
         print(f"Fetching thumb metadata: page {page}, {total_fetched} nodes... {elapsed(t0)}", end="\r", flush=True)
-        data = fetch_thumb_images(args.doc_id, args.user_id, args.app_token, cursor)
+        data = fetch_thumb_images(args.doc_id, args.user_id, args.app_token, args.first, cursor)
+        if "errors" in data:
+            print()
+            raise SystemExit(f"API error: {json.dumps(data['errors'], indent=2)}")
         feed = data["data"]["fetch__User"]["feed"]
         nodes = feed["nodes"]
         page_info = feed["page_info"]
@@ -124,46 +141,60 @@ def main():
 
     nodes_in_time_window.sort(key=lambda n: n[sort_key], reverse=True)
 
-    cache = load_cache()
-    to_fetch = [n for n in nodes_in_time_window if n["image_id"] not in cache]
-    cache_hits = len(nodes_in_time_window) - len(to_fetch)
-
-    if to_fetch:
-        total_seq = len(to_fetch)
-        done = 0
-        t1 = time.monotonic()
-        with ThreadPoolExecutor(max_workers=1) as pool:
-            futures = {pool.submit(fetch_sequence, node["image_id"], args.user_token): node["image_id"]
-                       for node in to_fetch}
-            for future in as_completed(futures):
-                image_id = futures[future]
-                cache[image_id] = future.result()
-                save_cache(cache)
-                done += 1
-                # \n on last line so the table header doesn't overwrite the progress line
-                print(f"Fetching sequences: {done}/{total_seq} {elapsed(t1)}", end="\r" if done < total_seq else "\n", flush=True)
-
-    sequences = cache
-
-    col_w = (28, 20, 10, 36)
     sort_label = "captured_at (UTC)" if args.sort_by == "captured_at" else "created_at (UTC)"
-    print(f"{sort_label:<{col_w[0]}} {'image_id':<{col_w[1]}} {'item_count':>{col_w[2]}} {'sequence':<{col_w[3]}}")
-    print("-" * (sum(col_w) + 3))
 
-    for node in nodes_in_time_window:
-        dt = datetime.fromtimestamp(node[sort_key], tz=timezone.utc)
-        print(
-            f"{dt.strftime('%Y-%m-%d %H:%M:%S UTC'):<{col_w[0]}} "
-            f"{node['image_id']:<{col_w[1]}} "
-            f"{node['item_count']:>{col_w[2]}} "
-            f"{sequences.get(node['image_id'], ''):<{col_w[3]}}"
-        )
+    if args.command == "thumbs":
+        col_w = (28, 20, 10)
+        print(f"{sort_label:<{col_w[0]}} {'image_id':<{col_w[1]}} {'item_count':>{col_w[2]}}")
+        print("-" * (sum(col_w) + 2))
+        for node in nodes_in_time_window:
+            dt = datetime.fromtimestamp(node[sort_key], tz=timezone.utc)
+            print(
+                f"{dt.strftime('%Y-%m-%d %H:%M:%S UTC'):<{col_w[0]}} "
+                f"{node['image_id']:<{col_w[1]}} "
+                f"{node['item_count']:>{col_w[2]}}"
+            )
+        print()
+        print(f"Nodes fetched  : {total_fetched}")
+        if capture_start or capture_end:
+            print(f"Nodes shown    : {len(nodes_in_time_window)}")
 
-    print()
-    print(f"Nodes fetched  : {total_fetched}")
-    print(f"Sequences cache: {cache_hits} hits, {len(to_fetch)} fetched")
-    if capture_start or capture_end:
-        print(f"Nodes shown    : {len(nodes_in_time_window)}")
+    else:  # sequences
+        cache = load_cache()
+        to_fetch = [n for n in nodes_in_time_window if n["image_id"] not in cache]
+        cache_hits = len(nodes_in_time_window) - len(to_fetch)
+
+        if to_fetch:
+            total_seq = len(to_fetch)
+            done = 0
+            t1 = time.monotonic()
+            with ThreadPoolExecutor(max_workers=4) as pool:
+                futures = {pool.submit(fetch_sequence, node["image_id"], args.user_token): node["image_id"]
+                           for node in to_fetch}
+                for future in as_completed(futures):
+                    image_id = futures[future]
+                    cache[image_id] = future.result()
+                    save_cache(cache)
+                    done += 1
+                    # \n on last line so the table header doesn't overwrite the progress line
+                    print(f"Fetching sequences: {done}/{total_seq} {elapsed(t1)}", end="\r" if done < total_seq else "\n", flush=True)
+
+        col_w = (28, 20, 10, 36)
+        print(f"{sort_label:<{col_w[0]}} {'image_id':<{col_w[1]}} {'item_count':>{col_w[2]}} {'sequence':<{col_w[3]}}")
+        print("-" * (sum(col_w) + 3))
+        for node in nodes_in_time_window:
+            dt = datetime.fromtimestamp(node[sort_key], tz=timezone.utc)
+            print(
+                f"{dt.strftime('%Y-%m-%d %H:%M:%S UTC'):<{col_w[0]}} "
+                f"{node['image_id']:<{col_w[1]}} "
+                f"{node['item_count']:>{col_w[2]}} "
+                f"{cache.get(node['image_id'], ''):<{col_w[3]}}"
+            )
+        print()
+        print(f"Nodes fetched  : {total_fetched}")
+        print(f"Sequences cache: {cache_hits} hits, {len(to_fetch)} fetched")
+        if capture_start or capture_end:
+            print(f"Nodes shown    : {len(nodes_in_time_window)}")
 
 
 if __name__ == "__main__":
