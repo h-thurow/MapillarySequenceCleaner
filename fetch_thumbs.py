@@ -8,7 +8,14 @@ import urllib.request
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 
+CONFIG_FILE = pathlib.Path(__file__).parent / "config.json"
 SEQUENCE_CACHE_FILE = pathlib.Path(__file__).parent / "sequence_cache.json"
+
+
+def load_config():
+    if CONFIG_FILE.exists():
+        return json.loads(CONFIG_FILE.read_text())
+    return {}
 
 
 def load_cache():
@@ -33,9 +40,9 @@ def fetch_thumb_images(doc_id, user_id, token, after=None):
         return json.loads(resp.read())
 
 
-def fetch_sequence(image_id, token):
-    # token contains '|' which must not be percent-encoded for this endpoint
-    url = f"https://graph.mapillary.com/{image_id}?fields=sequence&access_token={token}"
+def fetch_sequence(image_id, user_token):
+    # user_token contains '|' which must not be percent-encoded for this endpoint
+    url = f"https://graph.mapillary.com/{image_id}?fields=sequence&access_token={user_token}"
     try:
         with urllib.request.urlopen(url) as resp:
             return json.loads(resp.read()).get("sequence", "")
@@ -45,15 +52,27 @@ def fetch_sequence(image_id, token):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Fetch Mapillary thumb image metadata.")
-    parser.add_argument("--doc_id", required=True)
-    parser.add_argument("--user_id", required=True)
-    parser.add_argument("--token", required=True)
+    config = load_config()
+
+    parser = argparse.ArgumentParser(
+        description="Fetch Mapillary thumb image metadata.",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+    parser.add_argument("--doc_id", default=config.get("doc_id"), help="GraphQL doc_id for feed query")
+    parser.add_argument("--user_id", default=config.get("user_id"), help="Mapillary user ID")
+    parser.add_argument("--app_token", default=config.get("app_token"), help="Mapillary app client token (access_token)")
+    parser.add_argument("--user_token", default=config.get("user_token"), help="Personal OAuth token for Image API")
     parser.add_argument("--after", default=None, help="Pagination cursor (end_cursor from previous response)")
     parser.add_argument("--captured_from", default=None, metavar="YYYY-MM-DD[THH:MM:SS]", help="Filter: captured_at >= this date (UTC)")
     parser.add_argument("--captured_to", default=None, metavar="YYYY-MM-DD[THH:MM:SS]", help="Filter: captured_at <= this date (UTC)")
-    parser.add_argument("--sort-by", dest="sort_by", default="captured_at", choices=["captured_at", "created_at"], help="Sort output by field (default: captured_at)")
+    parser.add_argument("--sort-by", dest="sort_by", default="captured_at", choices=["captured_at", "created_at"], help="Sort output by field")
     args = parser.parse_args()
+
+    for name in ("doc_id", "user_id", "app_token"):
+        if not getattr(args, name):
+            parser.error(f"--{name} is required (set in config.json or pass as argument)")
+    if not args.user_token:
+        parser.error("--user_token is required (set in config.json or pass as argument)")
 
     def parse_dt(s):
         for fmt in ("%Y-%m-%dT%H:%M:%S", "%Y-%m-%d %H:%M:%S", "%Y-%m-%d"):
@@ -73,7 +92,7 @@ def main():
     all_filtered = []
 
     while True:
-        data = fetch_thumb_images(args.doc_id, args.user_id, args.token, cursor)
+        data = fetch_thumb_images(args.doc_id, args.user_id, args.app_token, cursor)
         feed = data["data"]["fetch__User"]["feed"]
         nodes = feed["nodes"]
         page_info = feed["page_info"]
@@ -99,7 +118,7 @@ def main():
 
     if to_fetch:
         with ThreadPoolExecutor(max_workers=1) as pool:
-            futures = {pool.submit(fetch_sequence, node["image_id"], args.token): node["image_id"]
+            futures = {pool.submit(fetch_sequence, node["image_id"], args.user_token): node["image_id"]
                        for node in to_fetch}
             for future in as_completed(futures):
                 image_id = futures[future]
