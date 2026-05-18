@@ -2,6 +2,7 @@
 import argparse
 import json
 import pathlib
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -11,16 +12,18 @@ from datetime import datetime, timezone
 CONFIG_FILE = pathlib.Path(__file__).parent / "config.json"
 SEQUENCE_CACHE_FILE = pathlib.Path(__file__).parent / "sequence_cache.json"
 
+# TODO Cache synchronisieren, wenn Thumbs gelöscht wurden, sowohl über die Brwowser-Anwendung als auch dieses Script.
 
 def load_config():
     if CONFIG_FILE.exists():
         return json.loads(CONFIG_FILE.read_text())
     return {}
 
-
 def load_cache():
     if SEQUENCE_CACHE_FILE.exists():
-        return json.loads(SEQUENCE_CACHE_FILE.read_text())
+        text = SEQUENCE_CACHE_FILE.read_text().strip()
+        if text:
+            return json.loads(text)
     return {}
 
 
@@ -87,11 +90,19 @@ def main():
 
     sort_key = args.sort_by + "_seconds"
 
+    def elapsed(t0):
+        s = int(time.monotonic() - t0)
+        return f"{s // 3600}:{s % 3600 // 60:02}:{s % 60:02}"
+
     cursor = args.after
     total_fetched = 0
     nodes_in_time_window = []
+    page = 0
+    t0 = time.monotonic()
 
     while True:
+        page += 1
+        print(f"Fetching thumb metadata: page {page}, {total_fetched} nodes... {elapsed(t0)}", end="\r", flush=True)
         data = fetch_thumb_images(args.doc_id, args.user_id, args.app_token, cursor)
         feed = data["data"]["fetch__User"]["feed"]
         nodes = feed["nodes"]
@@ -107,6 +118,7 @@ def main():
             nodes_in_time_window.append(node)
 
         if not page_info["has_next_page"]:
+            print(f"Fetching thumb metadata: page {page}, {total_fetched} nodes... done {elapsed(t0)}", flush=True)
             break
         cursor = page_info["end_cursor"]
 
@@ -117,6 +129,9 @@ def main():
     cache_hits = len(nodes_in_time_window) - len(to_fetch)
 
     if to_fetch:
+        total_seq = len(to_fetch)
+        done = 0
+        t1 = time.monotonic()
         with ThreadPoolExecutor(max_workers=1) as pool:
             futures = {pool.submit(fetch_sequence, node["image_id"], args.user_token): node["image_id"]
                        for node in to_fetch}
@@ -124,6 +139,9 @@ def main():
                 image_id = futures[future]
                 cache[image_id] = future.result()
                 save_cache(cache)
+                done += 1
+                # \n on last line so the table header doesn't overwrite the progress line
+                print(f"Fetching sequences: {done}/{total_seq} {elapsed(t1)}", end="\r" if done < total_seq else "\n", flush=True)
 
     sequences = cache
 
