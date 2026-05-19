@@ -1,3 +1,5 @@
 config.json
 mapillary.log
 .venv/
+/analyze_files/
+/responses/
