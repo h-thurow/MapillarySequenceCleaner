@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 import argparse
 import json
-import pathlib
 import time
 import urllib.error
 import urllib.parse
@@ -9,27 +8,11 @@ import urllib.request
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 
-CONFIG_FILE = pathlib.Path(__file__).parent / "config.json"
-SEQUENCE_CACHE_FILE = pathlib.Path(__file__).parent / "sequence_cache.json"
+from mapillary_utils import load_config, load_cache, save_cache, elapsed, setup_logging
+
+log = setup_logging()
 
 # TODO Cache synchronisieren, wenn Thumbs gelöscht wurden, sowohl über die Brwowser-Anwendung als auch dieses Script.
-
-def load_config():
-    if CONFIG_FILE.exists():
-        return json.loads(CONFIG_FILE.read_text())
-    return {}
-
-def load_cache():
-    if SEQUENCE_CACHE_FILE.exists():
-        text = SEQUENCE_CACHE_FILE.read_text().strip()
-        if text:
-            return json.loads(text)
-    return {}
-
-
-def save_cache(cache):
-    SEQUENCE_CACHE_FILE.write_text(json.dumps(cache, indent=2))
-
 
 def fetch_thumb_images(doc_id, user_id, token, first=200, after=None):
     variables = {"id": user_id, "first": first, "after": after, "hide_after": 14}
@@ -104,10 +87,6 @@ def main():
 
     sort_key = args.sort_by + "_seconds"
 
-    def elapsed(start):
-        s = int(time.monotonic() - start)
-        return f"{s // 3600}:{s % 3600 // 60:02}:{s % 60:02}"
-
     cursor = args.after
     total_fetched = 0
     nodes_in_time_window = []
@@ -120,6 +99,7 @@ def main():
         data = fetch_thumb_images(args.doc_id, args.user_id, args.app_token, args.first, cursor)
         if "errors" in data:
             print()
+            log.error("API error: %s", json.dumps(data['errors']))
             raise SystemExit(f"API error: {json.dumps(data['errors'], indent=2)}")
         feed = data["data"]["fetch__User"]["feed"]
         nodes = feed["nodes"]
@@ -195,6 +175,8 @@ def main():
         print(f"Sequences cache: {cache_hits} hits, {len(to_fetch)} fetched")
         if capture_start or capture_end:
             print(f"Nodes shown    : {len(nodes_in_time_window)}")
+        log.info("fetch_thumbs sequences: %d nodes fetched, %d shown, cache %d hits / %d fetched",
+                 total_fetched, len(nodes_in_time_window), cache_hits, len(to_fetch))
 
 
 if __name__ == "__main__":
