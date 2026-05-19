@@ -100,6 +100,12 @@ All date arguments accept:
 | `--captured_from` + `--captured_to` | Explicit window. Both must be provided together. Sequences that started before `captured_from` are flagged and require individual confirmation. |
 | _(none)_ | All sequences. |
 
+### Troubleshooting: --captured_to does not remove the last sequence
+
+![](./docs_resources/thumb.png)
+
+If --captured_to is set to "26 Oct 2024 11:42 am", it may not be deleted because the timestamp displayed is rounded. Where possible, therefore, a minute’s grace period should be built in from the outset: "26 Oct 2024 11:43 am".
+
 ### Deletion behaviour
 
 - Sequences with images in the time window are listed and confirmed before deletion.
