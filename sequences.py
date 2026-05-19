@@ -309,6 +309,8 @@ def cmd_delete(args, parser):
         except Exception as e:
             failed.append((sid, str(e)))
             log.error("delete failed: %s — %s", sid, e)
+        if args.delay > 0 and i < len(to_delete):
+            time.sleep(args.delay)
 
     print(f"\nDeleted {deleted}/{len(to_delete)} sequences. {elapsed(t2)}")
     if failed:
