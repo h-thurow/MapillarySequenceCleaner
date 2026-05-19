@@ -1,13 +1,6 @@
-# Mapillary Sequence Tools
+# Delete Mapillary Images per Sequences
 
-Python scripts to list and bulk-delete your Mapillary sequences.
-
-## Scripts
-
-| Script | Purpose |
-|--------|---------|
-| `sequences.py` | List and delete sequences via the Mapillary Image API |
-| `mapillary_utils.py` | Shared utilities (config, cache, logging) |
+Python script to list and bulk-delete your Mapillary sequences.
 
 ## Setup
 
@@ -17,17 +10,42 @@ source .venv/bin/activate
 pip install python-dateutil tzlocal
 ```
 
+## Configuration
+
 Create `config.json` in the project root (excluded from git):
 
 ```json
 {
-  "creator_username": "your_username",
+  "doc_id": "23918271204504446",
   "user_id": "your_numeric_user_id",
-  "user_token": "MLY|..."
+  "creator_username": "your Mapillary username",
+  "app_token": "MLY|4223665974375089|d62822dd792b6a823d0794ef26450398",
+  "user_token": "MLY|...",
+  "auth_header": "OAuth ..."
 }
 ```
 
-See `docs/Tokens.md` for how to obtain each token.
+### Determining the configuration settings 
+
+1. Open www.mapillary.com in Chrome
+2. Open the Developer Tools
+3. Go to the Network tab
+4. Load the map by clicking "Explore the map"
+4. Filter by doc_id
+
+You will then see this request:
+
+![](./docs_resources/app_token,user_id,doc_id.png)
+
+
+The payload contains **doc_id**, variables {id=[**user_id**], access_token (**app_token**). The **user_name** is displayed in the top-left corner.
+
+**auth_header**: The `Authorization` header value required for deletion. Filter for `fetch__user` in the Developer Tools:
+
+![](./docs_resources/authorization.png)
+
+
+**user_token**: See [Mapillary Client access token (`user_token`)](docs/Tokens.md).
 
 ## sequences.py
 
@@ -80,21 +98,17 @@ All date arguments accept:
 | `--captured_from` + `--captured_to` | Explicit window. Both must be provided together. Sequences that started before `captured_from` are flagged and require individual confirmation. |
 | _(none)_ | All sequences. |
 
-### --auth_header
-
-The `Authorization` header value required for deletion. It is short-lived and must be copied fresh from your browser each time:
-
-1. Open [mapillary.com](https://www.mapillary.com) and log in
-2. Open DevTools → Network tab
-3. Click any request to `graph.mapillary.com`
-4. Copy the `Authorization` request header value (e.g. `OAuth MLY|...`)
-
 ### Deletion behaviour
 
 - Sequences with images in the time window are listed and confirmed before deletion.
 - Sequences whose first image falls **outside** the window (boundary sequences caused by the browser's minute-precision display) are shown with a note and require explicit individual confirmation.
 - `--dry-run` shows what would be deleted without making any changes.
 - `--force` skips all confirmation prompts.
+- `--delay SECONDS` adds an extra pause between deletion requests (default: 0). Each request already takes 3–4 s naturally; use this if you want to slow down further.
+
+Deleting a large number of sequences in a short space of time may result in the thumbnails not being displayed for a while. See [Rate Limiting](docs/Tokens.md):
+
+![](./docs_resources/thumbs.png)
 
 ## Logging
 

@@ -10,7 +10,7 @@ Siehe auch [Token-Definition entsprechend Mapillary](https://www.mapillary.com/d
 | `user_token` | `MLY\|27053225000963327\|...` | User Access Token (eigene App) | privat | Image REST API (fetch_sequence) |
 | _(noch nicht implementiert)_ | Web-Session-Token nach Login | Authorization Bearer | privat (kurzlebig) | Delete-Mutation (als Header) |
 
-### 1. Mapillary App-Client-Token (`app_token`)
+### Mapillary App-Client-Token (`app_token`)
 
 ```
 MLY|4223665974375089|d62822dd792b6a823d0794ef26450398
@@ -24,14 +24,15 @@ MLY|4223665974375089|d62822dd792b6a823d0794ef26450398
 
 **Übergabe**: Als Query-Parameter `access_token=MLY|...` — das `|`-Zeichen darf **nicht** URL-kodiert werden (`%7C`). Der REST-Endpoint `graph.mapillary.com/{image_id}` lehnt percent-kodierte Tokens mit OAuthException 368 ab. Der GraphQL-Endpoint `/graphql/` akzeptiert beide Varianten.
 
-### 2. Eigener User Access Token (`user_token`)
+
+### Mapillary Client access token (`user_token`)
 
 ```
-MLY|27053225000963327|53bb846b894c4b744aacc16ba9c5bf37
+MLY|...|...
 ```
 
 - Ausgestellt über `mapillary.com/dashboard/developers` nach Registrierung einer eigenen App
-- Erstellt mit Scopes **read, write, upload** über `mapillary.com/dashboard/developers`
+- Erstellt mit Scopes **read, write, upload**
 - Mapillary-Terminologie: **User Access Token**
 - **Privat** (wie ein Passwort): Ermöglicht API-Calls im Namen des Nutzers
 - Eigenes Rate-Limit-Kontingent (60.000 Req/min), **unabhängig** vom geteilten Mapillary-Kontingent
@@ -40,7 +41,9 @@ MLY|27053225000963327|53bb846b894c4b744aacc16ba9c5bf37
 
 **Übergabe**: Als Query-Parameter `access_token=MLY|...` (Token-Literal, kein URL-Encoding des `|`)
 
-### 3. Web-Session-Authorization-Token
+Siehe auch [Client access token, User access token](https://www.mapillary.com/developer/api-documentation/#glossary).
+
+### Web-Session-Authorization-Token
 
 - Kurzlebiger Bearer-Token des eingeloggten Nutzers aus der Mapillary-Web-App
 - Nicht dauerhaft gespeichert — nur nach Login in Browser-Session verfügbar
@@ -59,7 +62,7 @@ MLY|27053225000963327|53bb846b894c4b744aacc16ba9c5bf37
 - Endpunkt: `https://graph.mapillary.com/graphql/`
 - **Geteiltes Kontingent** über alle Mapillary-Web-App-Nutzer — derselbe App-Client-Token
 - Limits sind **nicht dokumentiert**; Überschreitung liefert `{"errors":[{"message":"Rate limit exceeded","code":1675004}]}`
-- Wiederherstellungszeit nach Überschreitung: unbekannt, empirisch mehrere Stunden
+- Wiederherstellungszeit nach Überschreitung: unbekannt, empirisch mehrere Stunden (~5)
 - **Konsequenz**: Aggressives Scripting legt die Mapillary-Web-App für alle Nutzer lahm — Pausen zwischen Requests sind zwingend erforderlich
 
 ### Offizielle Entity-API (`/{image_id}`)
