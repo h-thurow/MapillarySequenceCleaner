@@ -1,80 +1,76 @@
 # Authentication
 
-Siehe auch [Token-Definition entsprechend Mapillary](https://www.mapillary.com/developer/api-documentation/#glossary).
+See also [Token definitions according to Mapillary](https://www.mapillary.com/developer/api-documentation/#glossary).
 
-## Drei Token-Typen im Überblick
+## Three token types at a glance
 
-| Config-Key | Token | Mapillary-Bezeichnung | Vertraulichkeit | Verwendung |
+| Config key | Token | Mapillary name | Confidentiality | Usage |
 |---|---|---|---|---|
-| `app_token` | `MLY\|4223665974375089\|...` | Client Token (Mapillary-App) | halböffentlich | GraphQL Feed-Endpoint + Delete-Mutation |
-| `user_token` | `MLY\|27053225000963327\|...` | User Access Token (eigene App) | privat | Image REST API (fetch_sequence) |
-| _(noch nicht implementiert)_ | Web-Session-Token nach Login | Authorization Bearer | privat (kurzlebig) | Delete-Mutation (als Header) |
+| `app_token` | `MLY\|4223665974375089\|...` | Client Token (Mapillary app) | semi-public | GraphQL feed endpoint + delete mutation |
+| `user_token` | `MLY\|27053225000963327\|...` | User Access Token (own app) | private | Image REST API |
+| `auth_header` | `OAuth MLY\|...` | Web session Authorization Bearer | private | Delete mutation (as header) |
 
-### Mapillary App-Client-Token (`app_token`)
+### Mapillary app client token (`app_token`)
 
 ```
 MLY|4223665974375089|d62822dd792b6a823d0794ef26450398
 ```
 
-- Hardcodiert im Mapillary JavaScript-Bundle (`main.*.js`) — **kein persönlicher User-Token**
-- Für alle Besucher von `www.mapillary.com` identisch, auch ohne Login
-- Überlebt Browser-Logout und Storage-Clears vollständig
-- Wird für den internen GraphQL-Feed-Endpoint verwendet (Thumbnail-Feed, Karten-Queries)
+- Hardcoded in the Mapillary JavaScript bundle (`main.*.js`) — **not a personal user token**
+- Identical for all visitors of `www.mapillary.com`, even without login
+- Survives browser logout and storage clears completely
+- Used for the internal GraphQL feed endpoint (thumbnail feed, map queries)
 - Format: `MLY|{app_id}|{client_secret}`
 
-**Übergabe**: Als Query-Parameter `access_token=MLY|...` — das `|`-Zeichen darf **nicht** URL-kodiert werden (`%7C`). Der REST-Endpoint `graph.mapillary.com/{image_id}` lehnt percent-kodierte Tokens mit OAuthException 368 ab. Der GraphQL-Endpoint `/graphql/` akzeptiert beide Varianten.
+**Passing it**: As query parameter `access_token=MLY|...` — the `|` character must **not** be URL-encoded (`%7C`). The REST endpoint `graph.mapillary.com/{image_id}` rejects percent-encoded tokens with OAuthException 368. The GraphQL endpoint `/graphql/` accepts both variants.
 
 
-### Mapillary Client access token (`user_token`)
+### Mapillary client access token (`user_token`)
 
 ```
 MLY|...|...
 ```
 
-- Ausgestellt über `mapillary.com/dashboard/developers` nach Registrierung einer eigenen App
-- Erstellt mit Scopes **read, write, upload**
-- Mapillary-Terminologie: **User Access Token**
-- **Privat** (wie ein Passwort): Ermöglicht API-Calls im Namen des Nutzers
-- Eigenes Rate-Limit-Kontingent (60.000 Req/min), **unabhängig** vom geteilten Mapillary-Kontingent
-- Verwendet für: Image REST API (`fetch_sequence`)
-- Löst das Rate-Limit-Problem des geteilten `app_token` — verifiziert: Abfrage aller Sequences ohne OAuthException
+- Issued via `mapillary.com/dashboard/developers` after registering your own app
+- Created with scopes **read, write, upload**
+- Mapillary terminology: **User Access Token**
+- **Private** (like a password): enables API calls on behalf of the user
+- Own rate-limit quota (60,000 req/min), **independent** of the shared Mapillary quota
+- Used for: Image REST API
 
-**Übergabe**: Als Query-Parameter `access_token=MLY|...` (Token-Literal, kein URL-Encoding des `|`)
+**Passing it**: As query parameter `access_token=MLY|...` (token literal, no URL-encoding of `|`)
 
-Siehe auch [Client access token, User access token](https://www.mapillary.com/developer/api-documentation/#glossary).
+See also [Client access token, User access token](https://www.mapillary.com/developer/api-documentation/#glossary).
 
-### Web-Session-Authorization-Token
+### Web session authorization token (`auth_header`)
 
-- Kurzlebiger Bearer-Token des eingeloggten Nutzers aus der Mapillary-Web-App
-- Nicht dauerhaft gespeichert — nur nach Login in Browser-Session verfügbar
-- Wird für die Delete-Mutation benötigt: `Authorization: Bearer {token}` Header
-- Kombiniert mit `app_token` für den internen GraphQL-Endpoint (wie alle internen Web-App-Calls)
-- **Noch nicht im Script implementiert** — wird für Schritt 1 des Delete-Workflows benötigt
+- Bearer token of the logged-in user from the Mapillary web app
+- Only available in the browser session after login
+- Required for the delete mutation: `Authorization: OAuth {token}` header
 
-**Verwendung im Delete-Workflow:**
-- Schritte 0–0.5 (lesend): `app_token` als `access_token` für Feed-Endpoint; `user_token` für Image REST API
-- Schritte 1–2 (Mutation/Deletion): `app_token` als `access_token` + Web-Session-Token als `Authorization`-Header
+**How to obtain**: Open [mapillary.com](https://www.mapillary.com), log in, open DevTools → Network tab, filter for `fetch__user`, copy the `Authorization` request header value (e.g. `OAuth MLY|...`).
 
-## Rate Limiting
+**Usage in the delete workflow:**
+- `app_token` as `access_token` + web session token as `Authorization` header
 
-### Interne Feed-API (`doc_id`-basiert)
+## Rate limiting
 
-- Endpunkt: `https://graph.mapillary.com/graphql/`
-- **Geteiltes Kontingent** über alle Mapillary-Web-App-Nutzer — derselbe App-Client-Token
-- Limits sind **nicht dokumentiert**; Überschreitung liefert `{"errors":[{"message":"Rate limit exceeded","code":1675004}]}`
-- Wiederherstellungszeit nach Überschreitung: unbekannt, empirisch mehrere Stunden (~5)
-- **Konsequenz**: Aggressives Scripting legt die Mapillary-Web-App für alle Nutzer lahm — Pausen zwischen Requests sind zwingend erforderlich
+### Internal GraphQL API (`/graphql/`)
 
-### Offizielle Entity-API (`/{image_id}`)
+- Endpoint: `https://graph.mapillary.com/graphql/`
+- Used for both the internal feed (doc_id-based) and the delete mutation (`requestImagesDeletion`)
+- Apparently a **shared quota** across all Mapillary web app users — same app client token
+- Limits are **not documented**; exceeding them returns `{"errors":[{"message":"Rate limit exceeded","code":1675004}]}`
+- Recovery time after exceeding: unknown, empirically several hours (~5)
 
-- Endpunkt: `https://graph.mapillary.com/{image_id}?fields=...`
-- Dokumentiertes Limit: 60.000 Requests/Minute pro App
-- Fehler bei Überschreitung: OAuthException 368 ("Bitte melde dich an")
-- Limit ist token-gebunden — eigenes `user_token` hat separates Kontingent, unabhängig vom geteilten `app_token`
-- **Lösung**: `user_token` (Developer-Token) statt `app_token` für Image REST API verwenden — verifiziert funktionsfähig
+### Official entity API (`/{image_id}`)
 
-## Quellen
+- Endpoint: `https://graph.mapillary.com/{image_id}?fields=...`
+- Documented limit: 60,000 requests/minute per app
+- Error on exceeding: OAuthException 368 ("Please log in")
+- Limit is token-bound — own `user_token` has a separate quota, independent of the shared `app_token`
 
-- HAR-Captures: `no_login.har`, `Explore_the_Map.har`
-- Mapillary API-Dokumentation: https://www.mapillary.com/developer/api-documentation#rate-limits
+## Sources
+
+- Mapillary API documentation: https://www.mapillary.com/developer/api-documentation#rate-limits
 - Mapillary Forum: https://forum.mapillary.com/t/mapillary-v4-api-map-feature-search-oauthexception/5793

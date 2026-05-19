@@ -2,6 +2,8 @@
 
 Python script to list and bulk-delete your Mapillary sequences.
 
+The project was vibe coded with Claude.
+
 ## Setup
 
 ```bash
@@ -104,9 +106,7 @@ All date arguments accept:
 - Sequences whose first image falls **outside** the window (boundary sequences caused by the browser's minute-precision display) are shown with a note and require explicit individual confirmation.
 - `--dry-run` shows what would be deleted without making any changes.
 - `--force` skips all confirmation prompts.
-- `--delay SECONDS` adds an extra pause between deletion requests (default: 0). Each request already takes 3–4 s naturally; use this if you want to slow down further.
-
-Deleting a large number of sequences in a short space of time may result in the thumbnails not being displayed for a while. See [Rate Limiting](docs/Tokens.md):
+- `--delay SECONDS` adds an extra pause between deletion requests (default: 10). Deleting sequences in a short space of time may result in the thumbnails not being displayed for a while. See also [Rate Limiting](docs/Tokens.md)
 
 ![](./docs_resources/thumbs.png)
 
