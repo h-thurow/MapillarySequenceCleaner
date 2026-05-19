@@ -206,7 +206,7 @@ def print_table(rows):
     print(f"Sequences found: {len(rows)}")
 
 
-def cmd_list(args, parser):
+def list(args, parser):
     log.info("sequences list: user=%s from=%s to=%s",
              args.creator_username, args.captured_from or "*", args.captured_to or "*")
 
@@ -239,7 +239,7 @@ def request_deletion(seq_id, user_id, authorization):
         return json.loads(resp.read())
 
 
-def cmd_delete(args, parser):
+def delete(args, parser):
     log.info("sequences delete: user=%s from=%s to=%s dry_run=%s",
              args.creator_username, args.captured_from or "*", args.captured_to or "*", args.dry_run)
 
@@ -338,25 +338,32 @@ def main():
         p.add_argument("--captured_to", default=None, metavar="DATETIME", help="Filter: captured_at <= this datetime")
         p.add_argument("--limit", type=int, default=config.get("limit", 2000), help="Page size for image query (max 2000)")
 
-    p_list = subparsers.add_parser(
-        "list",
-        help="List sequences with true first/last captured and range status",
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
-    )
-    add_common(p_list)
+    def create_list_parser():
+        list_parser = subparsers.add_parser(
+            "list",
+            help="List sequences with true first/last captured and range status",
+            formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+        )
+        add_common(list_parser)
 
-    p_delete = subparsers.add_parser(
-        "delete",
-        help="Delete sequences (only 'complete' ones within the time window)",
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
-    )
-    add_common(p_delete)
-    p_delete.add_argument("--user_id", default=config.get("user_id"), help="Mapillary numeric user ID")
-    p_delete.add_argument("--auth_header", default=config.get("auth_header"),
-                          metavar="BEARER_TOKEN",
-                          help="Value of the Authorization header (short-lived, copy from browser DevTools)")
-    p_delete.add_argument("--force", "-f", action="store_true", help="Skip confirmation prompt")
-    p_delete.add_argument("--dry-run", action="store_true", help="Show what would be deleted without deleting")
+    def create_delete_parser():
+        delete_parser = subparsers.add_parser(
+            "delete",
+            help="Delete sequences (only 'complete' ones within the time window)",
+            formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+        )
+        add_common(delete_parser)
+        delete_parser.add_argument("--user_id", default=config.get("user_id"), help="Mapillary numeric user ID")
+        delete_parser.add_argument("--auth_header", default=config.get("auth_header"),
+                              metavar="BEARER_TOKEN",
+                              help="Value of the Authorization header (short-lived, copy from browser DevTools)")
+        delete_parser.add_argument("--force", "-f", action="store_true", help="Skip confirmation prompt")
+        delete_parser.add_argument("--dry-run", action="store_true", help="Show what would be deleted without deleting")
+        delete_parser.add_argument("--delay", type=float, default=config.get("delay", 10),
+                              metavar="SECONDS", help="Extra pause between deletion requests in seconds (default: 0)")
+
+    create_list_parser()
+    create_delete_parser()
 
     args = parser.parse_args()
 
@@ -371,9 +378,9 @@ def main():
             parser.error("--auth_header is required for delete (copy Authorization header value from browser DevTools)")
 
     if args.command == "list":
-        cmd_list(args, parser)
+        list(args, parser)
     elif args.command == "delete":
-        cmd_delete(args, parser)
+        delete(args, parser)
 
 
 if __name__ == "__main__":
