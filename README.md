@@ -26,6 +26,7 @@ Create `config.json` in the project root (excluded from git):
   "auth_header": "OAuth ..."
 }
 ```
+All these keys can also be used on the command line, in which case they override the values in config.json.
 
 ### Determining the configuration settings 
 
@@ -77,13 +78,13 @@ Sequences found: 34
 python3 sequences.py delete --dry-run --captured_from "2024-12-01" --captured_to "2024-12-02"
 
 # Delete with confirmation prompt
-python3 sequences.py delete --captured_from "2024-12-01" --captured_to "2024-12-02" --auth_header "OAuth MLY|..."
+python3 sequences.py delete --captured_from "2024-12-01" --captured_to "2024-12-02"
 
 # Target a single sequence by its browser timestamp
-python3 sequences.py delete --captured_at "Dec 2, 2024 2:58 PM" --auth_header "OAuth MLY|..."
+python3 sequences.py delete --captured_at "Dec 2, 2024 2:58 PM"
 
 # Skip confirmation (for scripting)
-python3 sequences.py delete --captured_from "2024-12-01" --captured_to "2024-12-02" --force --auth_header "OAuth MLY|..."
+python3 sequences.py delete --captured_from "2024-12-01" --captured_to "2024-12-02" --force
 ```
 
 ### Date formats
