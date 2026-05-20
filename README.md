@@ -6,6 +6,8 @@ The project was vibe coded with Claude.
 
 ## Setup
 
+In the project directory:
+
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
