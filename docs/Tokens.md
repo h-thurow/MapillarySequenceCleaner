@@ -4,10 +4,10 @@ See also [Token definitions according to Mapillary](https://www.mapillary.com/de
 
 ## Three token types at a glance
 
-| Config key | Token | Mapillary name | Confidentiality | Usage |
-|---|---|---|---|---|
-| `app_token` | `MLY\|4223665974375089\|...` | Client Token (Mapillary app) | semi-public | GraphQL feed endpoint + delete mutation |
-| `user_token` | `MLY\|27053225000963327\|...` | User Access Token (own app) | private | Image REST API |
+| Config key | Token | Mapillary name                   | Confidentiality | Usage |
+|---|---|----------------------------------|---|---|
+| `app_token` | `MLY\|4223665974375089\|...` | Client Token (Mapillary app)     | semi-public | GraphQL feed endpoint + delete mutation |
+| `user_token` | `MLY\|27053225000963327\|...` | Client Access Token (own app)    | private | Image REST API |
 | `auth_header` | `OAuth MLY\|...` | Web session Authorization Bearer | private | Delete mutation (as header) |
 
 ### Mapillary app client token (`app_token`)
