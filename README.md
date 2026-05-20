@@ -1,6 +1,6 @@
-# Delete Mapillary Images per Sequences
+# Bulk-Delete your Mapillary Sequences
 
-Python script to list and bulk-delete your Mapillary sequences.
+Mapillary’s browser application does not offer a way to delete multiple sequences at once. Instead, each one must be deleted individually. Once selected, this requires several more clicks—with rather slow response times—before you can move on to the next sequence. With this Python script, you simply need to specify a time range within which all sequences are to be deleted.
 
 The project was vibe coded with Claude.
 
@@ -112,7 +112,7 @@ If --captured_to is set to "26 Oct 2024 11:42 am", it may not be deleted because
 - Sequences whose first image falls **outside** the window (boundary sequences caused by the browser's minute-precision display) are shown with a note and require explicit individual confirmation.
 - `--dry-run` shows what would be deleted without making any changes.
 - `--force` skips all confirmation prompts.
-- `--delay SECONDS` adds an extra pause between deletion requests (default: 10). Deleting sequences in a short space of time may result in the thumbnails not being displayed for a while. See also [Rate Limiting](docs/Tokens.md)
+- `--delay SECONDS` adds an extra pause between deletion requests (default: 10). Deleting sequences in a short space of time may result in the thumbnails not being displayed for a while. The default value didn't cause any issues with my deletions, whereas 0 definitely does. It might be possible to set it slightly lower. But everyone can test that for themselves. See also [Rate Limiting](docs/Tokens.md)
 
 ![](./docs_resources/thumbs.png)
 
