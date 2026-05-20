@@ -33,8 +33,6 @@ MLY|...|...
 
 - Issued via `mapillary.com/dashboard/developers` after registering your own app
 - Created with scopes **read, write, upload**
-- Mapillary terminology: **User Access Token**
-- **Private** (like a password): enables API calls on behalf of the user
 - Own rate-limit quota (60,000 req/min), **independent** of the shared Mapillary quota
 - Used for: Image REST API
 
