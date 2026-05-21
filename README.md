@@ -50,7 +50,7 @@ The payload contains **doc_id**, variables {id=[**user_id**], access_token (**ap
 ![](./docs_resources/authorization.png)
 
 
-**user_token**: See [Mapillary Client access token (`user_token`)](docs/Tokens.md).
+**user_token**: See [Mapillary Client access token (`user_token`)](docs/Tokens.md#mapillary-client-access-token-user_token).
 
 ## sequences.py
 
