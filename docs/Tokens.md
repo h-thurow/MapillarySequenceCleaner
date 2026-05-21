@@ -31,7 +31,7 @@ MLY|4223665974375089|d62822dd792b6a823d0794ef26450398
 MLY|...|...
 ```
 
-- Issued via `mapillary.com/dashboard/developers` after registering your own app
+- Issued via [www.mapillary.com/dashboard/developers](https://www.mapillary.com/dashboard/developers) after registering your own app
 - Created with scopes **read, write, upload**
 - Own rate-limit quota (60,000 req/min), **independent** of the shared Mapillary quota
 - Used for: Image REST API
