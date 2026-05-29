@@ -103,7 +103,8 @@ python3 sequences.py delete --captured_from "2024-12-01" --captured_to "2024-12-
 
 All date arguments accept:
 - ISO format (interpreted as UTC): `2024-12-02`, `2024-12-02T13:58:00`, `2024-12-02 13:58:00`
-- Browser display format (interpreted as local time with DST): `Dec 2, 2024 2:58 PM`
+- Browser display format (interpreted as local time with DST): `Oct 26, 2024 11:42 AM`  
+  ![](./docs_resources/thumb.png)
 
 ### Time window options
 
