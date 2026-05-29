@@ -118,7 +118,7 @@ All date arguments accept:
 
 ![](./docs_resources/thumb.png)
 
-If --captured_to is set to "26 Oct 2024 11:42 am", it may not be deleted because the timestamp displayed is rounded. Where possible, therefore, a minute’s grace period should be built in from the outset: "26 Oct 2024 11:43 am".
+The reason is that the seconds are simply truncated in the timestamps. Where possible, therefore, a minute’s grace period should be built in from the outset: "26 Oct 2024 11:43 am".
 
 ### Deletion behaviour
 
