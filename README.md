@@ -6,13 +6,23 @@ The project was vibe coded with Claude.
 
 ## Setup
 
-In the project directory:
+Before the MapillarySequenceCleaner can be used, its dependencies must be installed in the project directory once:
 
 ```bash
+cd /path/to/MapillarySequenceCleaner
 python3 -m venv .venv
 source .venv/bin/activate
 pip install python-dateutil tzlocal
 ```
+## Starting MapillarySequenceCleaner
+
+MapillarySequenceCleaner runs inside a Python virtual environment (`.venv`). The environment must be activated once per terminal session before any `python3 sequences.py ...` command will work:
+
+```bash
+cd /path/to/MapillarySequenceCleaner
+source .venv/bin/activate
+```
+The activation applies only to the current terminal session. Open a new terminal window and you need to run `source … activate` again.
 
 ## Configuration
 
